@@ -52,7 +52,7 @@ The Multisig Wallet contract allows multiple owners to securely manage funds and
    - Emits a `RevokeConfirmation` event.
 
 6. **`cancelTransaction(uint256 _txIndex)`**
-   - Cancels a transaction that has not been executed.
+   - Cancels a transaction that has not been executed if other owners confirm when calling the function.
    - **Parameters**:
      - `_txIndex`: The index of the transaction to cancel.
    - Emits a `CancelTransaction` event.
