@@ -1,116 +1,136 @@
 # Multisig Wallet Smart Contract
 
-Link web3 deploy contract:  [Link deploy](https://multisigweb3.netlify.app)
+Link web3 deploy contract: [Link deploy](https://multisigweb3.netlify.app)
 
 ## Overview
 
-The Multisig Wallet contract allows multiple owners to securely manage funds and perform transactions with a required number of confirmations. It supports both Ether and ERC20 token transactions, enhancing security against unauthorized access.
+The **Multisig Wallet** contract allows multiple owners to securely manage funds and perform various types of transactions with a required number of confirmations. It supports **Ether (native token)**, **ERC20**, **ERC721**, and **ERC1155** token transactions. The contract includes owner management, transaction cancellation, and built-in security mechanisms like **ReentrancyGuard**.
+
+This contract ensures that **no single owner can move funds alone**, making it suitable for team wallets, DAO treasuries, or secure fund management.
+
+---
 
 ## Features
 
-- **Multisignature Transactions**: Requires multiple confirmations to execute transactions.
-- **Token Support**: Allows sending both Ether and ERC20 tokens.
-- **Owner Management**: Dynamically add or remove owners and adjust required signatures.
-- **Transaction Expiry**: Transactions can expire after a certain time.
-- **Reentrancy Protection**: Implements ReentrancyGuard to prevent reentrancy attacks.
+- **Multisignature Transactions**: Requires multiple confirmations to execute any transaction.
+- **Token Support**: Handles Ether, ERC20, ERC721, and ERC1155 transfers.
+- **Owner Management**: Add or remove owners dynamically and adjust required signatures.
+- **Transaction Expiry**: Transactions expire after 1 day if not executed.
+- **Cancel Votes**: Owners can vote to cancel unconfirmed transactions.
+- **Security**: Implements ReentrancyGuard and ensures recipients are either EOAs or EIP-7702 upgraded addresses.
+- **Event Logging**: Emits events for all key actions to allow easy frontend tracking.
+
+---
+
+## Transaction Types
+
+The contract supports the following transaction types:
+
+| Type | Description |
+|------|-------------|
+| `WithdrawNativeToken` | Send Ether to an owner. |
+| `WithdrawERC20` | Send ERC20 tokens to an owner. |
+| `WithdrawERC721` | Send an ERC721 token to an owner. |
+| `WithdrawERC1155` | Send ERC1155 tokens to an owner. |
+| `AddOwner` | Add a new wallet owner. |
+| `RemoveOwner` | Remove an existing wallet owner. |
+| `ChangeRequiredSignatures` | Update the number of required signatures for transactions. |
+
+---
 
 ## Contract Functions
 
 ### Write Functions
 
-1. **`submitTokenTransaction(address _to, address _tokenAddress, uint256 _amount)`**
-   - Submits a token transfer transaction for confirmation.
-   - **Parameters**:
-     - `_to`: The recipient's address (must be an owner).
-     - `_tokenAddress`: The address of the ERC20 token to be transferred.
-     - `_amount`: The amount of tokens to transfer.
-   - Emits a `SubmitTransaction` event.
+#### Transaction Submission & Execution
 
-2. **`submitTransaction(address _to, uint256 _amount)`**
-   - Submits an Ether transfer transaction for confirmation.
-   - **Parameters**:
-     - `_to`: The recipient's address (must be an owner).
-     - `_amount`: The amount of Ether to transfer.
-   - Emits a `SubmitTransaction` event.
+- **`submitWithdrawNativeToken(address _to, uint256 _amount)`**  
+  Propose an Ether transfer to an owner.
 
-3. **`confirmTransaction(uint256 _txIndex)`**
-   - Confirms a submitted transaction.
-   - **Parameters**:
-     - `_txIndex`: The index of the transaction to confirm.
-   - Emits a `ConfirmTransaction` event.
+- **`submitWithdrawERC20(address _to, address _tokenAddress, uint256 _amount)`**  
+  Propose an ERC20 token transfer to an owner.
 
-4. **`executeTransaction(uint256 _txIndex)`**
-   - Executes a confirmed transaction.
-   - **Parameters**:
-     - `_txIndex`: The index of the transaction to execute.
-   - Emits an `ExecuteTransaction` event.
+- **`submitWithdrawERC721(address _to, address _tokenAddress, uint256 _tokenId)`**  
+  Propose an ERC721 token transfer to an owner.
 
-5. **`revokeConfirmation(uint256 _txIndex)`**
-   - Revokes a confirmation for a transaction.
-   - **Parameters**:
-     - `_txIndex`: The index of the transaction to revoke confirmation for.
-   - Emits a `RevokeConfirmation` event.
+- **`submitWithdrawERC1155(address _to, address _tokenAddress, uint256 _tokenId, uint256 _amount)`**  
+  Propose an ERC1155 token transfer to an owner.
 
-6. **`cancelTransaction(uint256 _txIndex)`**
-   - Cancels a transaction that has not been executed if other owners confirm when calling the function.
-   - **Parameters**:
-     - `_txIndex`: The index of the transaction to cancel.
-   - Emits a `CancelTransaction` event.
+- **`confirmTransaction(uint256 _txIndex)`**  
+  Confirm a pending transaction.
 
-7. **`submitAddOwner(address _newOwner)`**
-   - Submits a request to add a new owner.
-   - **Parameters**:
-     - `_newOwner`: The address of the new owner.
-   - Emits a `SubmitTransaction` event.
+- **`executeTransaction(uint256 _txIndex)`**  
+  Execute a confirmed transaction.
 
-8. **`executeAddOwner(uint256 _txIndex)`**
-   - Executes the addition of a new owner after sufficient confirmations.
-   - **Parameters**:
-     - `_txIndex`: The index of the transaction to execute.
-   - Emits `OwnerAdded` and `ExecuteTransaction` events.
+- **`revokeConfirmation(uint256 _txIndex)`**  
+  Revoke a previously submitted confirmation.
 
-9. **`submitRemoveOwner(address _owner)`**
-   - Submits a request to remove an existing owner.
-   - **Parameters**:
-     - `_owner`: The address of the owner to remove.
-   - Emits a `SubmitTransaction` event.
+- **`cancelTransaction(uint256 _txIndex)`**  
+  Vote to cancel a transaction that hasn’t been executed yet.
 
-10. **`executeRemoveOwner(uint256 _txIndex)`**
-    - Executes the removal of an owner after sufficient confirmations.
-    - **Parameters**:
-      - `_txIndex`: The index of the transaction to execute.
-    - Emits `OwnerRemoved` and `ExecuteTransaction` events.
+#### Owner Management
 
-11. **`submitSetRequiredSignatures(uint256 _newRequiredSignatures)`**
-    - Submits a request to change the number of required signatures.
-    - **Parameters**:
-      - `_newRequiredSignatures`: The new number of required signatures.
-    - Emits a `SubmitTransaction` event.
+- **`proposeAddOwner(address _newOwner)`**  
+  Propose adding a new owner.
 
-12. **`executeSetRequiredSignatures(uint256 _txIndex)`**
-    - Executes the change of required signatures after sufficient confirmations.
-    - **Parameters**:
-      - `_txIndex`: The index of the transaction to execute.
-    - Emits `RequiredSignaturesChanged` and `ExecuteTransaction` events.
+- **`proposeRemoveOwner(address _owner)`**  
+  Propose removing an existing owner.
+
+- **`proposeChangeRequiredSignatures(uint256 _newRequiredSignatures)`**  
+  Propose changing the required number of signatures for transactions.
+
+> All owner management proposals are executed through `executeTransaction` after reaching required confirmations.
+
+---
 
 ### Read Functions
 
-1. **`getTransactionCount()`**
-   - Returns the total number of transactions submitted to the contract.
+- **`getTransactionCount()`**  
+  Returns the total number of submitted transactions.
 
-2. **`getTransaction(uint256 _txIndex)`**
-   - Retrieves details of a specific transaction.
-   - **Parameters**:
-     - `_txIndex`: The index of the transaction.
-   - **Returns**:
-     - `to`: Recipient address.
-     - `value`: Amount of Ether or tokens to be transferred.
-     - `executed`: Whether the transaction has been executed.
-     - `confirmations`: Number of confirmations received.
-     - `createdAt`: Timestamp of transaction creation.
-     - `isTokenTransaction`: Boolean indicating if it’s a token transaction.
-     - `tokenAddress`: Address of the token involved, if applicable.
+- **`getTransaction(uint256 _txIndex)`**  
+  Returns detailed information about a specific transaction, including type, recipient, token address, amount, confirmations, and execution status.
 
-3. **`getOwners()`**
-   - Returns the list of current owners.
+- **`getOwners()`**  
+  Returns the list of current owners.
 
+- **`getNativeTokenBalance()`**  
+  Returns the Ether balance of the wallet.
+
+- **`getERC20TokenBalance(address tokenAddress)`**  
+  Returns the ERC20 token balance for the wallet.
+
+---
+
+### Security Checks
+
+- Only **owners** can propose, confirm, or execute transactions.
+- Transactions require **`requiredSignatures` confirmations** to execute.
+- Transactions expire after **1 day**.
+- Supports **EIP-7702 upgraded EOAs** for smart contract wallet compatibility.
+- **ReentrancyGuard** applied to prevent reentrancy attacks on execute functions.
+
+---
+
+### Events
+
+The contract emits events for all major actions:
+
+- `Deposit` – Ether deposit.
+- `ProposeTransaction` – Transaction proposal.
+- `ConfirmTransaction` – Transaction confirmation.
+- `ExecuteTransaction` – Transaction execution.
+- `RevokeConfirmation` – Revoking a confirmation.
+- `CancelTransaction` – Canceling a transaction via owner votes.
+- `OwnerAdded` / `OwnerRemoved` – Owner management.
+- `RequiredSignaturesChanged` – Signature requirement updates.
+- `WithdrawERC721` / `WithdrawERC1155` – NFT transfers.
+
+---
+
+### Notes
+
+- Max **10 owners** allowed.
+- Recipient of token transfers must be **an owner and either an EOA or EIP-7702 upgraded EOA**.
+- ERC1155 transfers support **amount > 0 only**.
+- Transactions that reach required confirmations cannot be canceled.
